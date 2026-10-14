@@ -59,6 +59,21 @@ rustPlatform.buildRustPackage (finalAttrs: {
     # EPERM before the binary runs. Strip it — tests don't need the bundle.
     substituteInPlace .cargo/config.toml \
       --replace-fail 'runner = ".cargo/run-macos.sh"' ""
+  ''
+  # cargo-bundle 0.12 reads macOS keys only from a [package.metadata.bundle.osx]
+  # table and rejects the flat osx_* spelling this release uses. Move them;
+  # the bundle table is the last one in the file. Upstream dropped the keys
+  # after 0.8.13 (AprilNEA/OpenLogi@b98fa46), so this goes with the next bump.
+  + lib.optionalString stdenv.hostPlatform.isDarwin ''
+    substituteInPlace crates/openlogi-desktop/Cargo.toml \
+      --replace-fail 'osx_minimum_system_version = "13.0"' "" \
+      --replace-fail 'osx_url_schemes = ["openlogi"]' ""
+    cat >> crates/openlogi-desktop/Cargo.toml <<'EOF'
+
+    [package.metadata.bundle.osx]
+    minimum_system_version = "13.0"
+    url_schemes = ["openlogi"]
+    EOF
   '';
 
   nativeBuildInputs = [
