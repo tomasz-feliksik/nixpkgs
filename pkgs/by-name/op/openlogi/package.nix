@@ -100,8 +100,27 @@ rustPlatform.buildRustPackage (finalAttrs: {
   cargoTestFlags = [
     "--workspace"
   ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    # Report every crate's failures, not just the first one's.
+    "--no-fail-fast"
+  ]
   ++ lib.optionals stdenv.hostPlatform.isLinux [
     "--exclude=openlogi-desktop"
+  ];
+
+  # These need a macOS desktop session, which the darwin build sandbox lacks;
+  # upstream runs them on GUI runners. Similar tests upstream are marked
+  # #[ignore = "requires a macOS desktop session"]; these are not (yet).
+  checkFlags = lib.optionals stdenv.hostPlatform.isDarwin [
+    # Subscribes to powerd through the IOPMConnection SPI; refused in the sandbox.
+    "--skip=activity_macos::tests::the_spi_reports_a_running_cpu_and_accepts_a_subscription"
+    # CGEventSourceCreate needs a WindowServer session.
+    "--skip=macos::tests::tap_callback_suppresses_normally_and_passes_through_panics"
+    "--skip=macos::translate::tests::a_key_openlogi_posted_is_not_translated"
+    # Keyboard layouts come from the HIServices XPC service, unreachable here.
+    "--skip=inject::macos::keyboard_layout::tests::"
+    # Posts a key event and waits for it; with no WindowServer it never returns.
+    "--skip=inject::macos::tests::posted_key_edges_carry_the_synthetic_tag"
   ];
 
   # xtask's release tests `git init` throwaway repositories.
